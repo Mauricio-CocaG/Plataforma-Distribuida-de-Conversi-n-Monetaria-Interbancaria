@@ -1,0 +1,326 @@
+version: '3.8'
+
+services:
+  # ============================================================
+  # BASES RELACIONALES (3)
+  # ============================================================
+  
+  # 1. MySQL - Banco Unión
+  mysql_banco_union:
+    image: mysql:8.0
+    container_name: mysql_banco_union
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: banco_union
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_banco_union_data:/var/lib/mysql
+      - type: bind
+        source: ./docker/mysql/init
+        target: /docker-entrypoint-initdb.d
+      - type: bind
+        source: ./docker/mysql/my.cnf
+        target: /etc/mysql/conf.d/my.cnf
+    command: --default-authentication-plugin=mysql_native_password
+    networks:
+      - plataforma-network
+
+  # 2. PostgreSQL - Banco Mercantil
+  postgres_banco_mercantil:
+    image: postgres:15
+    container_name: postgres_banco_mercantil
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: root123
+      POSTGRES_USER: root
+      POSTGRES_DB: banco_mercantil
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_banco_mercantil_data:/var/lib/postgresql/data
+      - type: bind
+        source: ./docker/postgres/init
+        target: /docker-entrypoint-initdb.d
+    networks:
+      - plataforma-network
+
+  # 3. Oracle XE - Banco BISA
+  oracle_banco_bisa:
+    image: gvenzl/oracle-xe:21-slim
+    container_name: oracle_banco_bisa
+    restart: unless-stopped
+    environment:
+      ORACLE_PASSWORD: root123
+      ORACLE_DATABASE: BANCO_BISA
+      APP_USER: BANCO_BISA
+      APP_USER_PASSWORD: root123
+    ports:
+      - "1521:1521"
+    volumes:
+      - oracle_banco_bisa_data:/opt/oracle/oradata
+      - type: bind
+        source: ./docker/oracle/init
+        target: /docker-entrypoint-initdb.d
+    networks:
+      - plataforma-network
+
+  # 4. MongoDB - Banco BNB
+  mongodb_banco_bnb:
+    image: mongo:7
+    container_name: mongodb_banco_bnb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root123
+      MONGO_INITDB_DATABASE: banco_bnb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_banco_bnb_data:/data/db
+      - type: bind
+        source: ./docker/mongodb/init
+        target: /docker-entrypoint-initdb.d
+    networks:
+      - plataforma-network
+
+  # 5. Redis - Banco BCP
+  redis_banco_bcp:
+    image: redis:7-alpine
+    container_name: redis_banco_bcp
+    restart: unless-stopped
+    command: redis-server --requirepass root123 --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_banco_bcp_data:/data
+    networks:
+      - plataforma-network
+
+  # ============================================================
+  # BASES REPETIDAS (9 bancos con MongoDB)
+  # ============================================================
+  
+  # 6. MongoDB - Banco Ganadero
+  mongodb_banco_ganadero:
+    image: mongo:7
+    container_name: mongodb_banco_ganadero
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root123
+      MONGO_INITDB_DATABASE: banco_ganadero
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongodb_banco_ganadero_data:/data/db
+      - type: bind
+        source: ./docker/mongodb/init
+        target: /docker-entrypoint-initdb.d
+    networks:
+      - plataforma-network
+
+  # 7. MongoDB - Banco Económico
+  mongodb_banco_economico:
+    image: mongo:7
+    container_name: mongodb_banco_economico
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root123
+      MONGO_INITDB_DATABASE: banco_economico
+    ports:
+      - "27019:27017"
+    volumes:
+      - mongodb_banco_economico_data:/data/db
+      - type: bind
+        source: ./docker/mongodb/init
+        target: /docker-entrypoint-initdb.d
+    networks:
+      - plataforma-network
+
+  # 8. MongoDB - Banco Prodem
+  mongodb_banco_prodem:
+    image: mongo:7
+    container_name: mongodb_banco_prodem
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root123
+      MONGO_INITDB_DATABASE: banco_prodem
+    ports:
+      - "27020:27017"
+    volumes:
+      - mongodb_banco_prodem_data:/data/db
+      - type: bind
+        source: ./docker/mongodb/init
+        target: /docker-entrypoint-initdb.d
+    networks:
+      - plataforma-network
+
+  # 9. MongoDB - Banco Solidario
+  mongodb_banco_solidario:
+    image: mongo:7
+    container_name: mongodb_banco_solidario
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root123
+      MONGO_INITDB_DATABASE: banco_solidario
+    ports:
+      - "27021:27017"
+    volumes:
+      - mongodb_banco_solidario_data:/data/db
+      - type: bind
+        source: ./docker/mongodb/init
+        target: /docker-entrypoint-initdb.d
+    networks:
+      - plataforma-network
+
+  # 10. MongoDB - Banco Fortaleza
+  mongodb_banco_fortaleza:
+    image: mongo:7
+    container_name: mongodb_banco_fortaleza
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root123
+      MONGO_INITDB_DATABASE: banco_fortaleza
+    ports:
+      - "27022:27017"
+    volumes:
+      - mongodb_banco_fortaleza_data:/data/db
+      - type: bind
+        source: ./docker/mongodb/init
+        target: /docker-entrypoint-initdb.d
+    networks:
+      - plataforma-network
+
+  # 11. MongoDB - Banco FIE
+  mongodb_banco_fie:
+    image: mongo:7
+    container_name: mongodb_banco_fie
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root123
+      MONGO_INITDB_DATABASE: banco_fie
+    ports:
+      - "27023:27017"
+    volumes:
+      - mongodb_banco_fie_data:/data/db
+      - type: bind
+        source: ./docker/mongodb/init
+        target: /docker-entrypoint-initdb.d
+    networks:
+      - plataforma-network
+
+  # 12. MongoDB - Banco PYME
+  mongodb_banco_pyme:
+    image: mongo:7
+    container_name: mongodb_banco_pyme
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root123
+      MONGO_INITDB_DATABASE: banco_pyme
+    ports:
+      - "27024:27017"
+    volumes:
+      - mongodb_banco_pyme_data:/data/db
+      - type: bind
+        source: ./docker/mongodb/init
+        target: /docker-entrypoint-initdb.d
+    networks:
+      - plataforma-network
+
+  # 13. MongoDB - Banco Desarrollo Productivo
+  mongodb_banco_bdp:
+    image: mongo:7
+    container_name: mongodb_banco_bdp
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root123
+      MONGO_INITDB_DATABASE: banco_bdp
+    ports:
+      - "27025:27017"
+    volumes:
+      - mongodb_banco_bdp_data:/data/db
+      - type: bind
+        source: ./docker/mongodb/init
+        target: /docker-entrypoint-initdb.d
+    networks:
+      - plataforma-network
+
+  # 14. MongoDB - Banco Argentina
+  mongodb_banco_argentina:
+    image: mongo:7
+    container_name: mongodb_banco_argentina
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root123
+      MONGO_INITDB_DATABASE: banco_argentina
+    ports:
+      - "27026:27017"
+    volumes:
+      - mongodb_banco_argentina_data:/data/db
+      - type: bind
+        source: ./docker/mongodb/init
+        target: /docker-entrypoint-initdb.d
+    networks:
+      - plataforma-network
+
+  # ============================================================
+  # ASFI Central (MySQL)
+  # ============================================================
+  mysql_asfi_central:
+    image: mysql:8.0
+    container_name: mysql_asfi_central
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: asfi_central
+    ports:
+      - "3308:3306"
+    volumes:
+      - mysql_asfi_central_data:/var/lib/mysql
+      - type: bind
+        source: ./docker/mysql/init
+        target: /docker-entrypoint-initdb.d
+      - type: bind
+        source: ./docker/mysql/my.cnf
+        target: /etc/mysql/conf.d/my.cnf
+    command: --default-authentication-plugin=mysql_native_password
+    networks:
+      - plataforma-network
+
+networks:
+  plataforma-network:
+    driver: bridge
+
+volumes:
+  # Relacionales
+  mysql_banco_union_data:
+  postgres_banco_mercantil_data:
+  oracle_banco_bisa_data:
+  
+  # No relacionales principales
+  mongodb_banco_bnb_data:
+  redis_banco_bcp_data:
+  
+  # MongoDB repetidos (9)
+  mongodb_banco_ganadero_data:
+  mongodb_banco_economico_data:
+  mongodb_banco_prodem_data:
+  mongodb_banco_solidario_data:
+  mongodb_banco_fortaleza_data:
+  mongodb_banco_fie_data:
+  mongodb_banco_pyme_data:
+  mongodb_banco_bdp_data:
+  mongodb_banco_argentina_data:
+  
+  # ASFI
+  mysql_asfi_central_data:
