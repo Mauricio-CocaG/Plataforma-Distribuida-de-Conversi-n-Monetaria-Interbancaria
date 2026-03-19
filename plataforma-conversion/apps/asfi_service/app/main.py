@@ -3,92 +3,130 @@ import httpx
 import os
 import logging
 import secrets
+import uuid
 from fastapi import FastAPI, HTTPException
 from datetime import datetime
+from typing import List, Optional
 
-# Auditoría de ASFI
+# Configuración de Logs
 logging.basicConfig(
     filename='asfi_operations.log',
     level=logging.INFO,
     format='%(asctime)s - [ASFI_CENTRAL] - %(message)s'
 )
 
-app = FastAPI(title="ASFI - Orquestador de Conversión")
+app = FastAPI(title="ASFI - Orquestador Central Corregido")
 
+# URLs y Configuración
 BCB_URL = os.getenv("BCB_API_URL", "http://bcb_service:8082")
 BANK_URL = os.getenv("BANK_API_URL", "http://bank_service:8081")
 
-# Lógica de Descifrado (Simulando la heterogeneidad criptográfica)
+# Variable global para rastrear el estado del barrido
+estado_control = {
+    "status": "IDLE",
+    "ultima_ejecucion": None,
+    "ultimo_lote_id": None,
+    "progreso": {}
+}
+
 def descifrar_saldo(saldo_cifrado: float, banco_id: int) -> float:
-    """
-    Aquí aplicarás las funciones de src/infrastructure/security/
-    según el ID del banco (César, AES, RSA, etc.)
-    """
-    # Por ahora, devolvemos el valor para procesar; aquí conectarás tus algoritmos
+    """Lógica de descifrado heterogéneo (Simulado)"""
+    # Aquí conectarás con src/infrastructure/security/
     return float(saldo_cifrado)
 
-async def procesar_banco_paralelo(client: httpx.AsyncClient, banco_id: int, tasa: float):
-    """Tarea individual por banco para el barrido"""
+async def procesar_lote_banco(client: httpx.AsyncClient, banco_id: int, tasa: float, lote_id: str):
+    """Procesa un banco usando paginación de 1000 en 1000"""
+    page = 0
+    limit = 1000
+    total_banco = 0
+    
     try:
-        # 1. Obtener cuentas del banco (lotes de 1000)
-       
-        res = await client.get(f"{BANK_URL}/api/cuentas/{banco_id}", timeout=10.0)
-        if res.status_code != 200:
-            return {"banco": banco_id, "status": "Error", "error": "Banco no responde"}
-
-        cuentas = res.json()
-        procesadas = []
-
-        for c in cuentas:
-            # 2. Descifrar saldo USD
-            saldo_descifrado = descifrar_saldo(c['SaldoUSD'], banco_id)
+        while True:
+            # 1. Consumir página de 1000 cuentas (Requerimiento Trello)
+            params = {"page": page, "limit": limit}
+            res = await client.get(f"{BANK_URL}/api/cuentas/{banco_id}", params=params, timeout=15.0)
             
-            # 3. Convertir a Bs
-            saldo_bs = round(saldo_descifrado * tasa, 4)
-            
-            # 4. Generar Código de Verificación Hexadecimal (8 caracteres)
-            cod_verif = secrets.token_hex(4).upper()
-            
-            procesadas.append({
-                "CuentaId": c['CuentaId'],
-                "SaldoBs": saldo_bs,
-                "CodigoVerificacion": cod_verif,
-                "FechaConversion": datetime.now().isoformat()
-            })
+            if res.status_code != 200:
+                break
+                
+            cuentas = res.json()
+            if not cuentas: # Si no hay más datos, termina el bucle
+                break
 
-        # 5. Devolver al banco para actualización masiva
-        await client.post(f"{BANK_URL}/api/actualizar-saldos", json=procesadas)
-        
-        logging.info(f"Barrido exitoso Banco {banco_id}: {len(procesadas)} cuentas.")
-        return {"banco": banco_id, "status": "Completado", "registros": len(procesadas)}
+            procesadas_para_banco = []
+            for c in cuentas:
+                saldo_descifrado = descifrar_saldo(c['SaldoUSD'], banco_id)
+                saldo_bs = round(saldo_descifrado * tasa, 4)
+                cod_verif = secrets.token_hex(4).upper() # 8 caracteres hex
+                
+                # Estructura para devolver al banco y para tu DB Central
+                datos_conversion = {
+                    "CuentaId": c['CuentaId'],
+                    "CI": c['Identificacion'],
+                    "NoCuenta": c['NroCuenta'],
+                    "SaldoUSD_Original": saldo_descifrado,
+                    "SaldoBs": saldo_bs,
+                    "CodigoVerificacion": cod_verif,
+                    "LoteId": lote_id,
+                    "FechaConversion": datetime.now().isoformat()
+                }
+                procesadas_para_banco.append(datos_conversion)
+                
+                # NOTA: Aquí deberías ejecutar el INSERT a tu DB 'asfi_central' 
+                # usando SQLAlchemy para las tablas Cuentas y LogsAuditoria
+
+            # 2. Enviar resultados de vuelta al banco (POST /actualizar-lote)
+            await client.post(f"{BANK_URL}/api/actualizar-lote", json=procesadas_para_banco)
+            
+            total_banco += len(procesadas_para_banco)
+            page += 1
+            
+        estado_control["progreso"][f"banco_{banco_id}"] = f"Completado: {total_banco} registros"
+        return {"banco": banco_id, "status": "OK", "total": total_banco}
 
     except Exception as e:
-        logging.error(f"Falla en barrido Banco {banco_id}: {str(e)}")
-        return {"banco": banco_id, "status": "Error", "error": str(e)}
+        logging.error(f"Error en banco {banco_id}: {str(e)}")
+        return {"banco": banco_id, "status": "Error", "detalle": str(e)}
 
-@app.post("/api/iniciar-proceso-conversion")
-async def iniciar_conversion():
+@app.get("/api/estado-barrido")
+async def get_estado_barrido():
+    """Consulta el estado del proceso (Requerimiento Trello)"""
+    return estado_control
+
+@app.post("/api/iniciar-barrido")
+async def iniciar_barrido():
+    """Inicia el procesamiento paralelo (Requerimiento Trello)"""
+    if estado_control["status"] == "RUNNING":
+        raise HTTPException(status_code=400, detail="Ya hay un barrido en curso")
+
     start_time = datetime.now()
+    lote_id = str(uuid.uuid4())[:8] # Generamos un ID de lote corto
     
+    estado_control["status"] = "RUNNING"
+    estado_control["ultimo_lote_id"] = lote_id
+    estado_control["progreso"] = {}
+
     async with httpx.AsyncClient() as client:
-        # 1. Obtener tasa del BCB
+        # 1. Consultar BCB Service
         try:
             res_bcb = await client.get(f"{BCB_URL}/api/tipo-cambio")
             tasa_actual = res_bcb.json()["data"]["valor_actual"]
         except:
-            raise HTTPException(status_code=500, detail="BCB fuera de línea")
+            estado_control["status"] = "ERROR_BCB"
+            raise HTTPException(status_code=500, detail="No se pudo obtener el tipo de cambio")
 
-        # 2. BARRIDO PARALELO (Optimización de tiempo requerida)
-        # Se lanzan las peticiones a los 14 bancos simultáneamente
-        tareas = [procesar_banco_paralelo(client, i, tasa_actual) for i in range(1, 15)]
+        # 2. BARRIDO PARALELO usando asyncio.gather() para 14 bancos
+        tareas = [procesar_lote_banco(client, i, tasa_actual, lote_id) for i in range(1, 15)]
         resultados = await asyncio.gather(*tareas)
 
-    end_time = datetime.now()
-    duracion = (end_time - start_time).total_seconds()
-
+    estado_control["status"] = "FINISHED"
+    estado_control["ultima_ejecucion"] = datetime.now().isoformat()
+    
+    duracion = (datetime.now() - start_time).total_seconds()
+    
     return {
-        "resumen": "Proceso de conversión masiva finalizado",
-        "duracion_segundos": duracion,
+        "lote_id": lote_id,
+        "duracion_seg": duracion,
         "tasa_aplicada": tasa_actual,
-        "detalle_por_entidad": resultados
+        "resumen": resultados
     }
