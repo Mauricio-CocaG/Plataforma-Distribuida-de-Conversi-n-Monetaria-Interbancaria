@@ -13,5 +13,61 @@ services:
       - ./docker/mysql/my.cnf:/etc/mysql/conf.d/my.cnf
     command: --default-authentication-plugin=mysql_native_password
 
+  postgres_banco_mercantil:
+    image: postgres:16
+    container_name: postgres_banco_mercantil
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: banco_mercantil
+      POSTGRES_USER: mercantil_user
+      POSTGRES_PASSWORD: mercantil_pass
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_banco_mercantil_data:/var/lib/postgresql/data
+      - ./docker/postgresql/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mercantil_user -d banco_mercantil"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  bank_mercantil_service:
+    build: .
+    container_name: bank_mercantil_service
+    restart: unless-stopped
+    depends_on:
+      postgres_banco_mercantil:
+        condition: service_healthy
+    ports:
+      - "8083:8083"
+    env_file:
+      - .env
+    working_dir: /app
+    command: uvicorn apps.bank_mercantil_service.app.main:app --host 0.0.0.0 --port 8083 --reload
+    volumes:
+      - ./:/app
+
+  postgres_asfi_central:
+    image: postgres:16
+    container_name: postgres_asfi_central
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: asfi_central
+      POSTGRES_USER: asfi_user
+      POSTGRES_PASSWORD: asfi_pass
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_asfi_central_data:/var/lib/postgresql/data
+      - ./docker/postgresql_asfi/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U asfi_user -d asfi_central"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   mysql_banco_union_data:
+  postgres_banco_mercantil_data:
+  postgres_asfi_central_data:
