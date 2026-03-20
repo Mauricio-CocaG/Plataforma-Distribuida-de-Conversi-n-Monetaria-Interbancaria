@@ -69,8 +69,8 @@ DB_CONFIG = {
           'user': 'root', 'password': 'root123', 'collection': 'Cuentas' },
     13: { 'type': 'mongodb', 'host': 'localhost', 'port': 27025, 'database': 'banco_bdp', 
           'user': 'root', 'password': 'root123', 'collection': 'Cuentas' },
-    14: { 'type': 'mongodb', 'host': 'localhost', 'port': 27026, 'database': 'banco_argentina', 
-          'user': 'root', 'password': 'root123', 'collection': 'Cuentas' },
+    14: { 'type': 'neo4j', 'host': 'localhost', 'port': 7687, 
+          'database': 'banco_argentina', 'user': 'neo4j', 'password': 'root123' },
 }
 
 # ============================================================
@@ -121,6 +121,11 @@ def get_connection(config):
                 password=config['password'], decode_responses=True,
                 socket_connect_timeout=3, socket_timeout=3
             )
+        elif db_type == 'neo4j':
+            # Importamos el repositorio que tienes en docker/neo4j
+            sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'docker', 'neo4j')))
+            from graph_repository import GraphRepository
+            return GraphRepository()
     except Exception as e:
         logger.warning(f"  Error conectando a banco {config.get('type')}: {e}")
         return None
@@ -179,13 +184,27 @@ def insertar_redis(conn, batch, banco_id):
                    'apellidos': r['apellidos'], 'saldo': r['saldo'], 'algoritmo': ALGORITMOS_BANCOS[banco_id]})
     pipe.execute()
     return len(batch)
+def insertar_batch_neo4j(repo, batch, banco_id):
+    """Insertar lote en Neo4j usando tu GraphRepository"""
+    if repo is None:
+        return 0
+    
+    for r in batch:
+        # Usamos tu método existente para registrar el flujo
+        repo.registrar_flujo_interbancario(
+            banco_origen="ASFI_CARGA_INICIAL", 
+            banco_destino=NOMBRES_BANCOS[banco_id], 
+            monto=float(r['Saldo'])
+        )
+    return len(batch)
 
 INSERTORES = {
     'mysql': insertar_mysql,
     'postgresql': insertar_postgresql,
     'oracle': insertar_oracle,
     'mongodb': insertar_mongodb,
-    'redis': insertar_redis
+    'redis': insertar_redis,
+    'neo4j': insertar_batch_neo4j
 }
 
 # ============================================================
