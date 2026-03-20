@@ -28,7 +28,7 @@ Thumbs.db
 *.log
 
 # --- Datos del Proyecto (Ignorar archivos pesados o temporales) ---
-data/processed/*.csv
+!data/processed/*.csv
 data/raw/*.csv
 !data/processed/.gitkeep
 !data/raw/.gitkeep
