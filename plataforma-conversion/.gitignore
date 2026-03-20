@@ -1,9 +1,38 @@
+# --- Entornos Virtuales ---
+venv/
 .venv/
+env/
+bin/
+lib/
+share/
+Include/
+
+# --- Python Cache & Compiled ---
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# --- Variables de Entorno (SEGURIDAD) ---
 .env
-.pytest_cache/
-.mypy_cache/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+
+# --- Editores y Sistema ---
 .vscode/
 .idea/
+.DS_Store
+Thumbs.db
 *.log
+
+# --- Datos del Proyecto (Ignorar archivos pesados o temporales) ---
+data/processed/*.csv
+data/raw/*.csv
+!data/processed/.gitkeep
+!data/raw/.gitkeep
+
+# --- Neo4j & Docker Temporals ---
+docker/neo4j/data/
+docker/mysql/data/

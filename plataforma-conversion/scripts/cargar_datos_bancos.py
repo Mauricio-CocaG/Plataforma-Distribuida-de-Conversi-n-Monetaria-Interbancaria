@@ -92,8 +92,8 @@ DB_CONFIG = {
     13: { 'type': 'mongodb', 'host': 'localhost', 'port': 27025, 
           'database': 'banco_bdp', 'user': 'root', 'password': 'root123' },
     # MongoDB - Banco Argentina
-    14: { 'type': 'mongodb', 'host': 'localhost', 'port': 27026, 
-          'database': 'banco_argentina', 'user': 'root', 'password': 'root123' },
+    14: { 'type': 'neo4j', 'host': 'localhost', 'port': 7687, 
+          'database': 'banco_argentina', 'user': 'neo4j', 'password': 'root123' },
 }
 
 # ============================================================
@@ -135,6 +135,11 @@ def get_connection(banco_id):
                 host=config['host'], port=config['port'],
                 password=config['password'], decode_responses=True
             )
+        elif db_type == 'neo4j':
+            # Importamos el repositorio que tienes en docker/neo4j
+            sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'docker', 'neo4j')))
+            from graph_repository import GraphRepository
+            return GraphRepository() # Retorna tu clase personalizada
     except Exception as e:
         logger.error(f"Error conectando a banco {banco_id}: {e}")
         return None
@@ -243,6 +248,20 @@ def insertar_batch_redis(conn, batch, banco_id):
         })
     pipe.execute()
     return len(batch)
+def insertar_batch_neo4j(repo, batch, banco_id):
+    """Insertar lote en Neo4j usando tu GraphRepository"""
+    if repo is None:
+        return 0
+    
+    for r in batch:
+        # Usamos tu método existente para registrar el flujo
+        repo.registrar_flujo_interbancario(
+            banco_origen="ASFI_CARGA_INICIAL", 
+            banco_destino=NOMBRES_BANCOS[banco_id], 
+            monto=float(r['Saldo'])
+        )
+    return len(batch)
+
 
 # Mapper de funciones de inserción
 INSERT_FUNCTIONS = {
@@ -251,6 +270,7 @@ INSERT_FUNCTIONS = {
     'oracle': insertar_batch_oracle,
     'mongodb': insertar_batch_mongodb,
     'redis': insertar_batch_redis,
+    'neo4j':insertar_batch_neo4j
 }
 
 # ============================================================

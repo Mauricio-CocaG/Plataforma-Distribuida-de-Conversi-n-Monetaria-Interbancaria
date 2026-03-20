@@ -297,6 +297,23 @@ services:
     networks:
       - plataforma-network
 
+  # Base de Datos de Grafos - ASFI Analytics
+  neo4j_asfi:
+    image: neo4j:5.12
+    container_name: neo4j_asfi
+    restart: unless-stopped
+    environment:
+      - NEO4J_AUTH=neo4j/root1234  # Usuario y contraseña por defecto
+      - NEO4J_PLUGINS=["apoc"]    # Plugin para funciones avanzadas
+    ports:
+      - "7474:7474" # Interfaz Web (Browser)
+      - "7687:7687" # Protocolo Bolt (Para Python)
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    networks:
+      - plataforma-network # Importante: la misma red que los otros bancos
+
 networks:
   plataforma-network:
     driver: bridge
@@ -324,3 +341,6 @@ volumes:
   
   # ASFI
   mysql_asfi_central_data:
+
+  neo4j_data:
+  neo4j_logs:
