@@ -4,89 +4,73 @@ import os
 import logging
 import secrets
 import uuid
+import mysql.connector
 from fastapi import FastAPI, HTTPException
 from datetime import datetime
-from typing import List, Optional
 
 # Configuración de Logs
-logging.basicConfig(
-    filename='asfi_operations.log',
-    level=logging.INFO,
-    format='%(asctime)s - [ASFI_CENTRAL] - %(message)s'
-)
+logging.basicConfig(filename='asfi_operations.log', level=logging.INFO, format='%(asctime)s - [ASFI_CENTRAL] - %(message)s')
 
 app = FastAPI(title="ASFI - Orquestador Central Corregido")
 
-# URLs y Configuración
+ASFI_DB_CONFIG = {
+    "host": "localhost",
+    "port": 3308,
+    "user": "root",
+    "password": "root123",
+    "database": "asfi_central"
+}
+
 BCB_URL = os.getenv("BCB_API_URL", "http://bcb_service:8082")
 BANK_URL = os.getenv("BANK_API_URL", "http://bank_service:8081")
 
-# Variable global para rastrear el estado del barrido
-estado_control = {
-    "status": "IDLE",
-    "ultima_ejecucion": None,
-    "ultimo_lote_id": None,
-    "progreso": {}
-}
+estado_control = {"status": "IDLE", "ultima_ejecucion": None, "ultimo_lote_id": None, "progreso": {}}
 
-def descifrar_saldo(saldo_cifrado: float, banco_id: int) -> float:
-    """Lógica de descifrado heterogéneo (Simulado)"""
-    # Aquí conectarás con src/infrastructure/security/
-    return float(saldo_cifrado)
-
-async def procesar_lote_banco(client: httpx.AsyncClient, banco_id: int, tasa: float, lote_id: str):
-    """Procesa un banco usando paginación de 1000 en 1000"""
-    page = 0
-    limit = 1000
-    total_banco = 0
-    
+@app.on_event("startup")
+async def seed_bancos():
+    """Llenado automático de la tabla Bancos al iniciar para evitar errores de FK"""
+    bancos = [
+        (1, 'Banco Union', 'Cesar'), (2, 'Banco Mercantil', 'Atbash'), (3, 'Banco BNB', 'Vigenere'),
+        (4, 'Banco BCP', 'Playfair'), (5, 'Banco BISA', 'Hill'), (6, 'Banco Ganadero', 'DES'),
+        (7, 'Banco Economico', '3DES'), (8, 'Banco Prodem', 'Blowfish'), (9, 'Banco Solidario', 'Twofish'),
+        (10, 'Banco Fortaleza', 'AES'), (11, 'Banco FIE', 'RSA'), (12, 'Banco PYME', 'ElGamal'),
+        (13, 'Banco BDP', 'ECC'), (14, 'Banco Argentina', 'ChaCha20')
+    ]
     try:
-        while True:
-            # 1. Consumir página de 1000 cuentas (Requerimiento Trello)
-            params = {"page": page, "limit": limit}
-            res = await client.get(f"{BANK_URL}/api/cuentas/{banco_id}", params=params, timeout=15.0)
-            
-            if res.status_code != 200:
-                break
-                
-            cuentas = res.json()
-            if not cuentas: # Si no hay más datos, termina el bucle
-                break
-
-            procesadas_para_banco = []
-            for c in cuentas:
-                saldo_descifrado = descifrar_saldo(c['SaldoUSD'], banco_id)
-                saldo_bs = round(saldo_descifrado * tasa, 4)
-                cod_verif = secrets.token_hex(4).upper() # 8 caracteres hex
-                
-                # Estructura para devolver al banco y para tu DB Central
-                datos_conversion = {
-                    "CuentaId": c['CuentaId'],
-                    "CI": c['Identificacion'],
-                    "NoCuenta": c['NroCuenta'],
-                    "SaldoUSD_Original": saldo_descifrado,
-                    "SaldoBs": saldo_bs,
-                    "CodigoVerificacion": cod_verif,
-                    "LoteId": lote_id,
-                    "FechaConversion": datetime.now().isoformat()
-                }
-                procesadas_para_banco.append(datos_conversion)
-                
-                # NOTA: Aquí deberías ejecutar el INSERT a tu DB 'asfi_central' 
-                # usando SQLAlchemy para las tablas Cuentas y LogsAuditoria
-
-            # 2. Enviar resultados de vuelta al banco (POST /actualizar-lote)
-            await client.post(f"{BANK_URL}/api/actualizar-lote", json=procesadas_para_banco)
-            
-            total_banco += len(procesadas_para_banco)
-            page += 1
-            
-        estado_control["progreso"][f"banco_{banco_id}"] = f"Completado: {total_banco} registros"
-        return {"banco": banco_id, "status": "OK", "total": total_banco}
-
+        conn = mysql.connector.connect(**ASFI_DB_CONFIG)
+        cursor = conn.cursor()
+        cursor.executemany("INSERT IGNORE INTO Bancos (Id, Nombre, AlgoritmoEncriptacion) VALUES (%s, %s, %s)", bancos)
+        conn.commit()
+        cursor.close()
+        conn.close()
+        logging.info("Tabla Bancos verificada/inicializada.")
     except Exception as e:
-        logging.error(f"Error en banco {banco_id}: {str(e)}")
-        return {"banco": banco_id, "status": "Error", "detalle": str(e)}
+        logging.error(f"Error en seed de bancos: {e}")
+
+async def guardar_en_db_asfi(datos_lote, tasa):
+    try:
+        conn = mysql.connector.connect(**ASFI_DB_CONFIG)
+        cursor = conn.cursor()
+        for d in datos_lote:
+            # 1. Cuentas (Usando INSERT IGNORE para evitar duplicados si se reintenta el lote)
+            sql_cuenta = """INSERT INTO Cuentas (CI, Nombres, Apellidos, NoCuenta, IdBanco, SaldoBs, LoteId, CodigoVerificacion, FechaConversion)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            ON DUPLICATE KEY UPDATE SaldoBs = VALUES(SaldoBs), LoteId = VALUES(LoteId)"""
+            cursor.execute(sql_cuenta, (d['CI'], d.get('Nombres', 'N/A'), d.get('Apellidos', 'N/A'), d['NoCuenta'], d['IdBanco'], d['SaldoBs'], d['LoteId'], d['CodigoVerificacion'], d['FechaConversion']))
+            
+            # 2. LogsAuditoria
+            cuenta_id = cursor.lastrowid
+            sql_log = """INSERT INTO LogsAuditoria (CuentaId, BancoId, NoCuenta, CI, MontoUSD_Original, MontoBs_Resultante, TipoCambioAplicado, LoteId, CodigoVerificacion, FechaConversion)
+                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
+            cursor.execute(sql_log, (cuenta_id, d['IdBanco'], d['NoCuenta'], d['CI'], d['SaldoUSD_Original'], d['SaldoBs'], tasa, d['LoteId'], d['CodigoVerificacion'], d['FechaConversion']))
+        conn.commit()
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        logging.error(f"Error en persistencia ASFI: {e}")
+
+# ... resto de las funciones de barrido iguales ...
+
 
 @app.get("/api/estado-barrido")
 async def get_estado_barrido():

@@ -128,3 +128,18 @@ CREATE TABLE LogsAuditoria (
 -- ============================================================
 -- INSERTAR LOS 14 BANCOS EN LA TABLA Bancos
 -- ============================================================
+INSERT INTO Bancos (Id, Nombre, AlgoritmoEncriptacion, PuertoAPI) VALUES 
+(1, 'Banco Union', 'Cifrado Cesar', 8081),
+(2, 'Banco Mercantil', 'Cifrado Atbash', 8082),
+(3, 'Banco BNB', 'Cifrado Vigenere', 8083),
+(4, 'Banco BCP', 'Cifrado Playfair', 8084),
+(5, 'Banco BISA', 'Cifrado Hill', 8085),
+(6, 'Banco Ganadero', 'DES', 8086),
+(7, 'Banco Economico', '3DES', 8087),
+(8, 'Banco Prodem', 'Blowfish', 8088),
+(9, 'Banco Solidario', 'Twofish', 8089),
+(10, 'Banco Fortaleza', 'AES', 8090),
+(11, 'Banco FIE', 'RSA', 8091),
+(12, 'Banco PYME', 'ElGamal', 8092),
+(13, 'Banco BDP', 'ECC', 8093),
+(14, 'Banco Argentina', 'ChaCha20', 8094);

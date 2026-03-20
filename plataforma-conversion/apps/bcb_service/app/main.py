@@ -1,20 +1,20 @@
 import asyncio
 import random
 import logging
+import mysql.connector
 from datetime import datetime
 from fastapi import FastAPI
 import uvicorn
 
-# 1. Configuración del Log de Auditoría (Requerimiento de la práctica)
-logging.basicConfig(
-    filename='bcb_changes.log',
-    level=logging.INFO,
-    format='%(asctime)s - [BCB_AUDIT] - %(message)s'
-)
+logging.basicConfig(filename='bcb_changes.log', level=logging.INFO, format='%(asctime)s - [BCB_AUDIT] - %(message)s')
 
 app = FastAPI(title="Servicio BCB - Tipo de Cambio Dinámico")
 
-# Estado persistente en memoria
+# Configuración para persistir en la DB de ASFI
+ASFI_DB_CONFIG = {
+    "host": "localhost", "port": 3308, "user": "root", "password": "root123", "database": "asfi_central"
+}
+
 class ExchangeState:
     def __init__(self):
         self.oficial = 6.96
@@ -24,24 +24,30 @@ class ExchangeState:
 state = ExchangeState()
 
 async def background_rate_updater():
-    """Actualiza el tipo de cambio cada 180 segundos (3 min)"""
     while True:
         await asyncio.sleep(180)
-        # Variación aleatoria entre -0.9999 y 0.9999
         variacion = random.uniform(-0.9999, 0.9999)
         nuevo_valor = round(6.96 + variacion, 4)
         
-        old_value = state.actual
+        # PERSISTENCIA EN DB
+        try:
+            conn = mysql.connector.connect(**ASFI_DB_CONFIG)
+            cursor = conn.cursor()
+            # Desactivar registros anteriores e insertar el nuevo
+            cursor.execute("UPDATE TiposCambio SET Activo = FALSE, FechaFin = %s WHERE Activo = TRUE", (datetime.now(),))
+            cursor.execute("INSERT INTO TiposCambio (Valor, FechaInicio, Activo) VALUES (%s, %s, TRUE)", (nuevo_valor, datetime.now()))
+            conn.commit()
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            logging.error(f"Error persistiendo Tipo de Cambio: {e}")
+
         state.actual = nuevo_valor
         state.ultima_actualizacion = datetime.now()
-        
-        # Guardar en log de auditoría
-        logging.info(f"TASA ACTUALIZADA: {old_value} -> {nuevo_valor} (Variación: {variacion:.4f})")
-        print(f" LOG: Tipo de cambio actualizado a {nuevo_valor}")
+        logging.info(f"TASA ACTUALIZADA: {nuevo_valor}")
 
 @app.on_event("startup")
 async def startup_event():
-    # Iniciar la tarea asíncrona al arrancar
     asyncio.create_task(background_rate_updater())
 
 @app.get("/api/tipo-cambio")
@@ -51,7 +57,6 @@ async def get_tipo_cambio():
         "data": {
             "oficial_base": state.oficial,
             "valor_actual": state.actual,
-            "variacion": round(state.actual - state.oficial, 4),
             "ultima_actualizacion": state.ultima_actualizacion.isoformat()
         }
     }
