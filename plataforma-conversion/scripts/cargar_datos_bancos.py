@@ -179,16 +179,10 @@ def insertar_redis(conn, batch, banco_id):
     pipe.execute()
     return len(batch)
 def insertar_batch_neo4j(repo, batch, banco_id):
-    """Insertar lote en Neo4j usando tu GraphRepository - SIN CAMBIOS"""
-    if repo is None:
-        return 0
+    if repo is None: return 0
     for r in batch:
-        # Usamos tu método existente para registrar el flujo
-        repo.registrar_flujo_interbancario(
-            banco_origen="ASFI_CARGA_INICIAL",
-            banco_destino=NOMBRES_BANCOS[banco_id],
-            monto=float(r['saldo'])
-        )
+        # LLAMAMOS AL NUEVO MÉTODO QUE CREA CLIENTE Y CUENTA
+        repo.cargar_cliente_cuenta(r)
     return len(batch)
 INSERTORES = {
     'mysql': insertar_mysql,
@@ -208,6 +202,35 @@ def limpiar_cuenta(valor):
         try: return str(int(float(v)))
         except: return v
     return v
+
+def limpiar_todo_incluyendo_asfi():
+    # 1. Limpiar los 14 bancos (usando tu DB_CONFIG actual)
+    limpiar_todas_las_bases() 
+    
+    # 2. Limpiar la ASFI Central (MySQL Puerto 3308)
+    try:
+        import mysql.connector
+        conn = mysql.connector.connect(
+            host='localhost', 
+            port=3308, 
+            user='root', 
+            password='root123', 
+            database='asfi_central',
+            auth_plugin='mysql_native_password' # <--- IMPORTANTE
+        )
+        cursor = conn.cursor()
+        # Solo truncamos lo transaccional, mantenemos la configuración de 'Bancos'
+        cursor.execute("SET FOREIGN_KEY_CHECKS = 0;")
+        cursor.execute("TRUNCATE TABLE LogsAuditoria;")
+        cursor.execute("TRUNCATE TABLE Cuentas;")
+        cursor.execute("SET FOREIGN_KEY_CHECKS = 1;")
+        conn.commit()
+        print("🏛️ ASFI Central: Tablas 'Cuentas' y 'LogsAuditoria' truncadas exitosamente.")
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        print(f"⚠️ Error limpiando ASFI: {e}")
+
 def limpiar_todas_las_bases():
     logger.info("🧹 Limpiando las 14 bases de datos en paralelo...")
     def ejecutar_borrado(bid):
@@ -235,7 +258,7 @@ def limpiar_todas_las_bases():
                 conn.close()
             elif tipo == 'neo4j':
                 with conn.driver.session() as s:
-                    s.run("MATCH (n:Cuenta) DETACH DELETE n")
+                    s.run("MATCH (n) DETACH DELETE n")
                 conn.driver.close()
         except Exception as e:
             logger.warning(f"  ⚠️ Error limpiando Banco {bid}: {e}")
@@ -330,9 +353,11 @@ if __name__ == "__main__":
     print(f"📊 Tamaño: {os.path.getsize(archivo)/1024/1024:.2f} MB")
     print("="*70)
     # Preguntar si limpiar
-    respuesta = input("¿Limpiar todas las bases antes de cargar? (s/N): ").strip().lower()
+    respuesta = input("¿Limpiar TODAS las bases (14 bancos + ASFI)? (s/N): ").strip().lower()
     if respuesta == 's':
-        limpiar_todas_las_bases()
+        # CAMBIO AQUÍ: Llamamos a la función completa
+        limpiar_todo_incluyendo_asfi()
+    
     inicio = datetime.now()
     try:
         cargar_datos_paralelo(archivo)

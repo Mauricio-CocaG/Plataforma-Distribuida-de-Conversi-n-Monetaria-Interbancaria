@@ -25,7 +25,7 @@ state = ExchangeState()
 
 async def background_rate_updater():
     while True:
-        await asyncio.sleep(180)
+        await asyncio.sleep(60)
         variacion = random.uniform(-0.9999, 0.9999)
         nuevo_valor = round(6.96 + variacion, 4)
         

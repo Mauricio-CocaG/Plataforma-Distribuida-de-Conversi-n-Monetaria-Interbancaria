@@ -255,21 +255,18 @@ services:
       - plataforma-network
 
   # 14. MongoDB - Banco Argentina
-  mongodb_banco_argentina:
-    image: mongo:7
-    container_name: mongodb_banco_argentina
+  neo4j_banco_argentina:
+    image: neo4j:5.12
+    container_name: neo4j_banco_argentina
     restart: unless-stopped
     environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: root123
-      MONGO_INITDB_DATABASE: banco_argentina
+      - NEO4J_AUTH=neo4j/root1234
+      - NEO4J_PLUGINS=["apoc"]
     ports:
-      - "27026:27017"
+      - "7474:7474" # Interfaz Web
+      - "7687:7687" # Protocolo Bolt para el script de Python
     volumes:
-      - mongodb_banco_argentina_data:/data/db
-      - type: bind
-        source: ./docker/mongodb/init
-        target: /docker-entrypoint-initdb.d
+      - neo4j_data:/data
     networks:
       - plataforma-network
 
@@ -297,22 +294,7 @@ services:
     networks:
       - plataforma-network
 
-  # Base de Datos de Grafos - ASFI Analytics
-  neo4j_asfi:
-    image: neo4j:5.12
-    container_name: neo4j_asfi
-    restart: unless-stopped
-    environment:
-      - NEO4J_AUTH=neo4j/root1234  # Usuario y contraseña por defecto
-      - NEO4J_PLUGINS=["apoc"]    # Plugin para funciones avanzadas
-    ports:
-      - "7474:7474" # Interfaz Web (Browser)
-      - "7687:7687" # Protocolo Bolt (Para Python)
-    volumes:
-      - neo4j_data:/data
-      - neo4j_logs:/logs
-    networks:
-      - plataforma-network # Importante: la misma red que los otros bancos
+ 
 
 networks:
   plataforma-network:
