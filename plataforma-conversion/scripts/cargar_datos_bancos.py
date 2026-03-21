@@ -42,7 +42,7 @@ ALGORITMOS_BANCOS = {
 DB_CONFIG = {
     1: { 'type': 'mysql', 'host': 'localhost', 'port': 3307, 'database': 'banco_union',
          'user': 'root', 'password': 'root123', 'table': 'Cuentas' },
-    2: { 'type': 'postgresql', 'host': 'localhost', 'port': 5432, 'database': 'banco_mercantil',
+    2: { 'type': 'postgresql', 'host': 'localhost', 'port': 5433, 'database': 'banco_mercantil',
          'user': 'root', 'password': 'root123', 'table': 'cuentas' },
     3: { 'type': 'mongodb', 'host': 'localhost', 'port': 27017, 'database': 'banco_bnb',
          'user': 'root', 'password': 'root123', 'collection': 'Cuentas' },
@@ -79,29 +79,32 @@ def get_connection(config):
             return mysql.connector.connect(
                 host=config['host'], port=config['port'],
                 database=config['database'], user=config['user'],
-                password=config['password'], connection_timeout=3,
-                autocommit=False, use_pure=True
+                password=config['password'],
+                auth_plugin='mysql_native_password' # <--- AGREGA ESTO
             )
         elif config['type'] == 'postgresql':
             import psycopg2
-            import psycopg2.extensions            
+            # 1. Conectamos normal
             conn = psycopg2.connect(
-                host=config['host'], port=config['port'],
-                database=config['database'], user=config['user'],
-                password=config['password'], connect_timeout=3
-            )            
-            # CORREGIDO: Cambiar a LATIN1 para evitar errores de decodificación
-            conn.set_client_encoding('LATIN1')
+                host=config['host'], 
+                port=config['port'],
+                database=config['database'], 
+                user=config['user'],
+                password=config['password'],
+                connect_timeout=10
+            )
+            # 2. Forzamos el encoding inmediatamente después de abrir la conexión
+            # Esto evita que los mensajes de error posteriores rompan el codec
+            conn.set_client_encoding('UTF8') 
             return conn
         elif config['type'] == 'oracle':
             import oracledb
-            oracledb.defaults.fetch_lobs = False
-            dsn = oracledb.makedsn(config['host'], config['port'], service_name=config['service'])
-            # CORREGIDO: Eliminado timeout que causaba error
+            # Forzamos el modo grueso si es necesario, pero intentamos delgado primero
+            dsn_str = f"{config['host']}:{config['port']}/{config['service']}"
             return oracledb.connect(
                 user=config['user'],
                 password=config['password'],
-                dsn=dsn
+                dsn=dsn_str
             )
         elif config['type'] == 'mongodb':
             from pymongo import MongoClient
