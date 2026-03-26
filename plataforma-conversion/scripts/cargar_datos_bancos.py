@@ -66,7 +66,7 @@ DB_CONFIG = {
     13: { 'type': 'mongodb', 'host': 'localhost', 'port': 27025, 'database': 'banco_bdp',
           'user': 'root', 'password': 'root123', 'collection': 'Cuentas' },
     14: { 'type': 'neo4j', 'host': 'localhost', 'port': 7687,  # SIN CAMBIOS - MANTENEMOS NEO4J
-          'database': 'banco_argentina', 'user': 'neo4j', 'password': 'root1234' },
+          'database': 'neo4j', 'user': 'neo4j', 'password': 'root1234' },
 }
 # ============================================================
 # FUNCIONES DE CONEXION - VERSIÓN CORREGIDA
@@ -121,10 +121,9 @@ def get_connection(config):
                 socket_connect_timeout=3
             )
         elif config['type'] == 'neo4j':
-            # SIN CAMBIOS - Mantenemos tu repositorio exactamente como estaba
             sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'docker', 'neo4j')))
             from graph_repository import GraphRepository
-            return GraphRepository()
+            return GraphRepository(database=config.get('database', 'neo4j'))
     except Exception as e:
         logger.warning(f"  Error conectando a banco {config.get('type')}: {e}")
         return None
@@ -179,9 +178,9 @@ def insertar_redis(conn, batch, banco_id):
     pipe.execute()
     return len(batch)
 def insertar_batch_neo4j(repo, batch, banco_id):
-    if repo is None: return 0
+    if repo is None: 
+        return 0
     for r in batch:
-        # LLAMAMOS AL NUEVO MÉTODO QUE CREA CLIENTE Y CUENTA
         repo.cargar_cliente_cuenta(r)
     return len(batch)
 INSERTORES = {

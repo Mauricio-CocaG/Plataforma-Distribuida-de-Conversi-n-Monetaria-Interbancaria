@@ -34,7 +34,7 @@ def descifrar_monto(valor_cifrado, banco_id):
     """
     try:
         # Limpieza: Convertimos a string y tomamos solo la parte numérica
-        v = str(valor_cifrado).split('.')[0].replace('-', '')
+        v = str(valor_cifrado).split('.')[0]
         if not v: return 0.0
         
         # 1. CESAR (Inversa: -3 mod 10)
@@ -105,9 +105,11 @@ def descifrar_monto(valor_cifrado, banco_id):
 
         # 14. CHACHA20 (Inversa: XOR con semilla fija 42 % 10 = 2)
         elif banco_id == 14:
-            return float("".join(str(int(d) ^ 2)[-1] for d in v))
+            # Aplicamos XOR 2 a cada dígito para recuperar el original
+            res = "".join(str(int(d) ^ 2)[-1] for d in v if d.isdigit())
+            return float(res) if res else 0.0
 
-        return float(v)
+        return float(valor_cifrado)
     except Exception as e:
         logging.warning(f"Error descifrando dato de Banco {banco_id}: {e}")
         return 0.0
