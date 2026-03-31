@@ -154,8 +154,8 @@ def cifrar_para_banco(saldo, banco_id):
             return "".join(str((int(d) + fib[i % len(fib)]) % 10) for i, d in enumerate(v))
         
         # 14. CHACHA20 (XOR con 2) - Banco Argentina (Neo4j)
-        elif banco_id == 14:
-            return "".join(str(int(d) ^ 2)[-1] for d in v)
+       # elif banco_id == 14:
+         #   return "".join(str(int(d) ^ 2)[-1] for d in v)
         
         return v
     except:

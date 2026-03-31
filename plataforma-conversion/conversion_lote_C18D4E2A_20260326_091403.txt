@@ -1,0 +1,45 @@
+================================================================================
+ASFI CENTRAL - INFORME DE CONVERSIÓN MONETARIA
+================================================================================
+
+LOTE ID: C18D4E2A
+FECHA Y HORA: 2026-03-26 09:14:03
+TIPO DE CAMBIO APLICADO: 7.9209 Bs/USD
+TIEMPO TOTAL DE PROCESAMIENTO: 12.18 segundos
+TOTAL DE CUENTAS PROCESADAS: 8747
+
+--------------------------------------------------------------------------------
+DETALLE POR BANCO
+--------------------------------------------------------------------------------
+Banco 1: 0 cuentas procesadas
+  - Registros en LogsAuditoria: 0
+Banco 2: 0 cuentas procesadas
+  - Registros en LogsAuditoria: 0
+Banco 3: 0 cuentas procesadas
+  - Registros en LogsAuditoria: 0
+Banco 4: 0 cuentas procesadas
+  - Registros en LogsAuditoria: 0
+Banco 5: 8747 cuentas procesadas
+  - Registros en LogsAuditoria: 8747
+Banco 6: 0 cuentas procesadas
+  - Registros en LogsAuditoria: 0
+Banco 7: 0 cuentas procesadas
+  - Registros en LogsAuditoria: 0
+Banco 8: 0 cuentas procesadas
+  - Registros en LogsAuditoria: 0
+Banco 9: 0 cuentas procesadas
+  - Registros en LogsAuditoria: 0
+Banco 10: 0 cuentas procesadas
+  - Registros en LogsAuditoria: 0
+Banco 11: 0 cuentas procesadas
+  - Registros en LogsAuditoria: 0
+Banco 12: 0 cuentas procesadas
+  - Registros en LogsAuditoria: 0
+Banco 13: 0 cuentas procesadas
+  - Registros en LogsAuditoria: 0
+Banco 14: 0 cuentas procesadas
+  - Registros en LogsAuditoria: 0
+
+================================================================================
+FIN DEL INFORME
+================================================================================

@@ -1,0 +1,12 @@
+Fecha: 2026-03-26 10:04:56.871572
+Total registros con alertas: 6
+Saldos negativos: 2
+============================================================
+⚠️ Fila 44443: SALDO NEGATIVO (-0.0001) detectado
+   → Convertido a 0
+⚠️ Fila 44444: SALDO NEGATIVO (-100000.0) detectado
+   → Convertido a 0
+⚠️ Fila 55346: Saldo muy alto (2499999.212), se mantiene pero está fuera de rango normal
+⚠️ Fila 81245: Saldo muy alto (3499999.213), se mantiene pero está fuera de rango normal
+⚠️ Fila 100549: Saldo muy alto (1499996.642), se mantiene pero está fuera de rango normal
+Fila 114315: Identificacion faltante, asignado ID_114315
