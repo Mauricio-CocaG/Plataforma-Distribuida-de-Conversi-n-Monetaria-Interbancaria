@@ -5,6 +5,7 @@ El sistema opera sobre un ecosistema heterogéneo coordinado por un nodo central
 Es el cerebro del sistema. Almacena el catálogo de bancos, los tipos de cambio oficiales y el Log de Auditoría que vincula el saldo original en USD con el resultante en Bs.
 
 SQL
+
     CREATE TABLE Bancos (
         Id INT PRIMARY KEY AUTO_INCREMENT,
         Nombre VARCHAR(100) NOT NULL,
@@ -21,6 +22,7 @@ SQL
         CodigoVerificacion CHAR(8) NOT NULL,
         FechaConversion DATETIME NOT NULL
     );
+    
 2. Bancos Relacionales (SQL)
 Cada banco implementa variaciones según su motor:
 
@@ -32,17 +34,20 @@ Banco Mercantil (PostgreSQL): Utiliza snake_case (nro_cuenta, saldo_usd) y dispa
 
 SQL
 -- Ejemplo PostgreSQL (Banco 2)
+
     CREATE TABLE cuentas (
         id BIGSERIAL PRIMARY KEY,
         nro_cuenta VARCHAR(30) NOT NULL UNIQUE,
         saldo_usd NUMERIC(18,4) NOT NULL,
         algoritmo_usado VARCHAR(50) DEFAULT 'Atbash'
 );
+
 3. Banco 14 - Grafos (Neo4j)
 Utiliza un modelo de relaciones para vincular clientes con cuentas, optimizando las búsquedas de propiedad.
 
 Cypher
 // Creación de estructura Clientes-Cuentas
+
     MERGE (cl:Cliente {NroIdentificacion: $id})
     SET cl.Nombres = $nom, cl.Apellidos = $ape
     MERGE (c:Cuenta {NroCuenta: $nro})
@@ -56,6 +61,7 @@ Banco BCP (Redis): Almacenamiento en memoria mediante Hashes para acceso instant
 
 JavaScript
 // MongoDB Setup (Banco 3)
+
     db.Cuentas.createIndex({ "NroCuenta": 1 }, { unique: true });
     db.createUser({ user: "app_user", pwd: "app123", roles: ["readWrite"] });
 
